@@ -43,6 +43,8 @@ release = about['__version__']
 # ones.
 extensions = ['recommonmark']
 
+master_doc = 'index'
+
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
 
