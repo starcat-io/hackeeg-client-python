@@ -6,7 +6,10 @@ Local Streaming
 This part of the documentation is about streaming data from HackEEG to software running on the same
 computer, like a laptop.
 
+Installing HackEEG on a Raspberry Pi 4
+--------------------------------------
 
+First, :ref:`install HackEEG <install>` on your computer.
 
 Connecting OpenBCI to HackEEG via Lab Streaming Layer
 -----------------------------------------------------
@@ -18,7 +21,8 @@ Connecting OpenBCI to HackEEG via Lab Streaming Layer
 
        $ hackeeg_stream --sps 500 --continuous --lsl
 
-#. Start OpenBCI as described in :ref:`OpenBCI <openbci>`
+#. You should see the HackEEG blue board LED blink briefly to indicate proper operation.
+#. Start OpenBCI as described in :ref:`OpenBCI <user/openbci>`
 #. Select ``Live (from Lab Streaming Layer)``
 #. Select ``8 channels``
 #. Click ``Start Session``
