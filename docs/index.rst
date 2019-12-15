@@ -26,6 +26,7 @@ or other programs.
    user/quickstart
    user/openbci
    user/local-streaming
+   user/wifi-streaming
 
 
 
