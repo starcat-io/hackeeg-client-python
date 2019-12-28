@@ -26,8 +26,6 @@ hackeeg_stream Usage Information
 
 If you run ``hackeeg_stream --help``, this is what you will get::
 
-    .. code-block:: bash
-
        $ hackeeg_stream -h
        usage: hackeeg_stream.py [-h] [--debug] [--samples SAMPLES] [--continuous]
                                 [--sps SPS] [--gain GAIN] [--lsl]
