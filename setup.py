@@ -36,4 +36,13 @@ setup(name='hackeeg',
 			"gnureadline",
 			"pylsl",
       ],
+      scripts=[
+            "bin/example.py",
+            "bin/hackeeg_shell",
+            "bin/hackeeg_shell.py",
+            "bin/hackeeg_stream",
+            "bin/hackeeg_stream.py",
+            "bin/lsl_receive_data.py",
+            "bin/simple_lsl_receive_and_plot.py",
+      ],
       zip_safe=False)

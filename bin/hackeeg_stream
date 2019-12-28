@@ -25,5 +25,5 @@ while [ $((attempts < 10)) ]; do
   fi
 done
 
-./hackeeg_test.py $PORT "$@"
+hackeeg_stream.py $PORT "$@"
 
