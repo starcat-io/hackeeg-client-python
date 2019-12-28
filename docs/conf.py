@@ -70,7 +70,7 @@ html_theme_options = {
     'github_user': 'starcat-io',
     'github_repo': 'hackeeg-client-pytbon',
     'github_banner': False,
-    'show_related': False
+    'show_related': False,
 }
 
 # Add any paths that contain custom static files (such as style sheets) here,
@@ -78,3 +78,6 @@ html_theme_options = {
 # so a file named "default.css" will overwrite the builtin "default.css".
 html_static_path = ['_static']
 
+html_css_files = [
+    'style.css',
+]
