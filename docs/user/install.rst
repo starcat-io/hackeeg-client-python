@@ -1,17 +1,15 @@
+.. include:: /substitutions.rst
 .. _install:
 
 Installing hackeeg
 ==================
 
-
 This part of the documentation covers the installation of hackeeg.
-The first step to using any software package is getting it properly installed.
-
 
 $ pipenv install hackeeg
 ------------------------
 
-To install hackeeg, run this command in your terminal of choice::
+To install hackeeg, run these commands in your terminal of choice::
 
     $ pipenv install
     $ pipenv install hackeeg
@@ -26,8 +24,8 @@ can guide you through the process.
 Get the Source Code
 -------------------
 
-hackeeg is actively developed on GitHub, where the code is
-`always available <https://github.com/starcat-io/hackeeg-client-python>`_. If you want
+hackeeg is `actively developed on GitHub
+<https://github.com/starcat-io/hackeeg-client-python>`_. If you want
 to modify it or help us develop it, you'll need the source code.
 
 You can either clone the public repository::

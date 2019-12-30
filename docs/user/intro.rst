@@ -1,3 +1,4 @@
+.. include:: /substitutions.rst
 .. _intro:
 
 Introduction

@@ -1,8 +1,5 @@
+.. include:: /substitutions.rst
 .. _wifi-streaming:
-
-.. |br| raw:: html
-
-   &nbsp;<br>
 
 WiFi Streaming
 ==============
@@ -97,7 +94,7 @@ Connecting OpenBCI to HackEEG via Lab Streaming Layer
        $ hackeeg_stream --sps 500 --continuous --lsl
 
 #. You should see the HackEEG blue board LED blink briefly to indicate proper operation.
-#. Start OpenBCI as described in :ref:`OpenBCI <openbci>`
+#. Start OpenBCI as described in :ref:`openbci`
 #. Select ``Live (from Lab Streaming Layer)``
 #. Select ``8 channels``
 #. Click ``Start Session``
