@@ -1,3 +1,6 @@
+.. include:: /substitutions.rst
+.. _index:
+
 HackEEG Python client library
 =================================================
 
@@ -36,3 +39,5 @@ Indices and tables
 * :ref:`genindex`
 * :ref:`modindex`
 * :ref:`search`
+
+

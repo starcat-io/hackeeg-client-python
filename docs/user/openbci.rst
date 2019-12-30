@@ -1,16 +1,17 @@
+.. include:: /substitutions.rst
 .. _openbci:
 
 Installing OpenBCI
 ==================
 
 This section covers installing and running the Lab Streaming Layer branch of Starcat's fork of
-`OpenBCI <https://github.com/OpenBCI/OpenBCI_GUI>`_.
+`OpenBCI <https://github.com/OpenBCI/OpenBCI_GUI>`__.
 We can't use the regular released version of OpenBCI because Starcat has modified OpenBCI to take
-`Lab Streaming Layer <https://github.com/sccn/labstreaminglayer>`_ input,
+`Lab Streaming Layer <https://github.com/sccn/labstreaminglayer>`__ input,
 and these changes haven't made it back into the main released version.
 
-#. Download the latest version of the `Processing <https://processing.org/download/>`_ app
-#. Using git, clone the Starcat fork of `OpenBCI_GUI <https://github.com/adamfeuer/openbci_gui>`_
+#. Download the latest version of the `Processing <https://processing.org/download/>`__ app
+#. Using git, clone the Starcat fork of `OpenBCI_GUI <https://github.com/adamfeuer/openbci_gui>`__
 
     .. code-block:: bash
 
