@@ -30,6 +30,7 @@ or other programs.
    user/openbci
    user/local-streaming
    user/wifi-streaming
+   user/python-api
 
 
 
