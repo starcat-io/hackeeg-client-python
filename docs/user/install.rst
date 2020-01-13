@@ -15,11 +15,16 @@ To install hackeeg, run these commands in your terminal of choice::
     $ pipenv install hackeeg
     $ pipenv shell
 
-If you don't have `pipenv <https://pipenv.kennethreitz.org/en/latest/>`_ installed, head over to the 
-`Pipenv website <https://pipenv.kennethreitz.org/en/latest/>`_ for installation instructions. Or, if 
-you prefer to just use pip and don't have it installed,
-`this Python installation guide <https://pip.pypa.io/en/stable/installing/>`_
-can guide you through the process.
+If you don't have `pipenv <https://pipenv.kennethreitz.org/en/latest/>`_ installed, see the
+`pipenv installation instructions <https://pipenv.kennethreitz.org/en/latest/install/#installing-pipenv>`_
+on the `pipenv website <https://pipenv.kennethreitz.org/en/latest/>`_. Or, if you prefer to just
+use pip::
+
+    $ pip install hackeeg
+
+If you don't have pip installed,
+`this Python installation guide <https://pip.pypa.io/en/stable/installing/>`_ can guide you through
+the process.
 
 Get the Source Code
 -------------------
