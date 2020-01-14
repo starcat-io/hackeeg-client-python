@@ -51,6 +51,7 @@ class HackEegTestApplication:
         self.serial_port_name = None
         self.hackeeg = None
         self.debug = False
+        self.channel_test = False
         self.quiet = False
         self.hex = False
         self.messagepack = False
@@ -102,26 +103,11 @@ class HackEegTestApplication:
         gain_setting = GAINS[gain]
 
         self.hackeeg.disable_all_channels()
-        # test_signal_mode = ads1299.INT_TEST_DC | ads1299.CONFIG2_const
-        # test_signal_mode = ads1299.INT_TEST_4HZ | ads1299.CONFIG2_const
-        # self.hackeeg.wreg(ads1299.CONFIG2, test_signal_mode)
+        if self.channel_test:
+            self.channel_config_test()
+        else:
+            self.channel_config_input(gain_setting)
 
-
-        # channel config
-        # self.hackeeg.wreg(ads1299.CHnSET + 1, ads1299.INT_TEST_DC | gain_setting)
-        # self.hackeeg.wreg(ads1299.CHnSET + 6, ads1299.INT_TEST_DC | gain_setting)
-        self.hackeeg.wreg(ads1299.CHnSET + 1, ads1299.ELECTRODE_INPUT | gain_setting)
-        self.hackeeg.wreg(ads1299.CHnSET + 2, ads1299.ELECTRODE_INPUT | gain_setting)
-        self.hackeeg.wreg(ads1299.CHnSET + 3, ads1299.ELECTRODE_INPUT | gain_setting)
-        self.hackeeg.wreg(ads1299.CHnSET + 4, ads1299.ELECTRODE_INPUT | gain_setting)
-        self.hackeeg.wreg(ads1299.CHnSET + 5, ads1299.ELECTRODE_INPUT | gain_setting)
-        self.hackeeg.wreg(ads1299.CHnSET + 6, ads1299.ELECTRODE_INPUT | gain_setting)
-        self.hackeeg.wreg(ads1299.CHnSET + 7, ads1299.ELECTRODE_INPUT | gain_setting)
-        self.hackeeg.wreg(ads1299.CHnSET + 8, ads1299.ELECTRODE_INPUT | gain_setting)
-
-        # all channels enabled
-        # for channel in range(1, 9):
-        #     self.hackeeg.wreg(ads1299.CHnSET + channel, ads1299.TEST_SIGNAL | gain_setting )
 
         # Route reference electrode to SRB1: JP8:1-2, JP7:NC (not connected)
         # use this with humans to reduce noise
@@ -143,6 +129,41 @@ class HackEegTestApplication:
         self.hackeeg.start()
         self.hackeeg.rdatac()
         return
+
+    def channel_config_input(self, gain_setting):
+        # all channels enabled
+        # for channel in range(1, 9):
+        #     self.hackeeg.wreg(ads1299.CHnSET + channel, ads1299.TEST_SIGNAL | gain_setting )
+
+        # self.hackeeg.wreg(ads1299.CHnSET + 1, ads1299.INT_TEST_DC | gain_setting)
+        # self.hackeeg.wreg(ads1299.CHnSET + 6, ads1299.INT_TEST_DC | gain_setting)
+        self.hackeeg.wreg(ads1299.CHnSET + 1, ads1299.ELECTRODE_INPUT | gain_setting)
+        self.hackeeg.wreg(ads1299.CHnSET + 2, ads1299.ELECTRODE_INPUT | gain_setting)
+        self.hackeeg.wreg(ads1299.CHnSET + 3, ads1299.ELECTRODE_INPUT | gain_setting)
+        self.hackeeg.wreg(ads1299.CHnSET + 4, ads1299.ELECTRODE_INPUT | gain_setting)
+        self.hackeeg.wreg(ads1299.CHnSET + 5, ads1299.ELECTRODE_INPUT | gain_setting)
+        self.hackeeg.wreg(ads1299.CHnSET + 6, ads1299.ELECTRODE_INPUT | gain_setting)
+        self.hackeeg.wreg(ads1299.CHnSET + 7, ads1299.ELECTRODE_INPUT | gain_setting)
+        self.hackeeg.wreg(ads1299.CHnSET + 8, ads1299.ELECTRODE_INPUT | gain_setting)
+
+    def channel_config_test(self):
+        # test_signal_mode = ads1299.INT_TEST_DC | ads1299.CONFIG2_const
+        test_signal_mode = ads1299.INT_TEST_4HZ | ads1299.CONFIG2_const
+        self.hackeeg.wreg(ads1299.CONFIG2, test_signal_mode)
+        self.hackeeg.wreg(ads1299.CHnSET + 1, ads1299.INT_TEST_DC | ads1299.GAIN_1X)
+        self.hackeeg.wreg(ads1299.CHnSET + 2, ads1299.SHORTED | ads1299.GAIN_1X)
+        self.hackeeg.wreg(ads1299.CHnSET + 3, ads1299.MVDD | ads1299.GAIN_1X)
+        self.hackeeg.wreg(ads1299.CHnSET + 4, ads1299.BIAS_DRN | ads1299.GAIN_1X)
+        self.hackeeg.wreg(ads1299.CHnSET + 5, ads1299.BIAS_DRP | ads1299.GAIN_1X)
+        self.hackeeg.wreg(ads1299.CHnSET + 6, ads1299.TEMP | ads1299.GAIN_1X)
+        self.hackeeg.wreg(ads1299.CHnSET + 7, ads1299.TEST_SIGNAL | ads1299.GAIN_1X)
+        self.hackeeg.disable_channel(8)
+
+        # all channels enabled
+        # for channel in range(1, 9):
+        #     self.hackeeg.wreg(ads1299.CHnSET + channel, ads1299.TEST_SIGNAL | gain_setting )
+        pass
+
 
 
     def parse_args(self):
@@ -169,6 +190,9 @@ class HackEegTestApplication:
                             default=self.lsl_stream_name, type=str),
         parser.add_argument("--messagepack", "-M",
                             help=f"MessagePack mode– use MessagePack format to send sample data to the host, rather than JSON Lines",
+                            action="store_true")
+        parser.add_argument("--channel-test", "-T",
+                            help=f"set the channels to internal test settings for software testing",
                             action="store_true")
         parser.add_argument("--hex", "-H",
                             help=f"hex mode– output sample data in hexidecimal format for debugging",
@@ -197,6 +221,7 @@ class HackEegTestApplication:
         self.serial_port_name = args.serial_port
         self.hackeeg = hackeeg.HackEEGBoard(self.serial_port_name, baudrate=2000000, debug=self.debug)
         self.max_samples = args.samples
+        self.channel_test = args.channel_test
         self.quiet = args.quiet
         self.hex = args.hex
         self.messagepack = args.messagepack
