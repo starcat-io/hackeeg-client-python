@@ -1,9 +1,31 @@
 #!/bin/bash
 
-# MacOS only for now
 port() {
-  PORT=$(ioreg -p IOUSB -w0 |grep 'Arduino Due@'|sed 's/^.*@//g'|sed 's/[0..9] .*<class.*$//g' | xargs -Ifoo find /dev -iname "cu.usbmodemfoo*" 2>/dev/null)
-  echo $PORT
+  OS="$(uname)"
+  case $OS in
+    'Linux')
+      # experimental
+      PROGRAMMING_PORT=""
+      NATIVE_PORT=""
+
+      ARDUINO_PROGRAMMING_PORT_ID="Arduino_Due_Prog._Port"
+      ARDUINO_NATIVE_PORT_ID="Arduino_Due"
+      PROGRAMMING_PORT_NAME=`find /dev/serial/by-id/* -type l -exec file {} \; | grep -Po "$ARDUINO_PROGRAMMING_PORT_ID.*/\K[^/]+$"`
+      NATIVE_PORT_NAME=`find /dev/serial/by-id/* -type l -exec file {} \; | grep -v "$ARDUINO_PROGRAMMING_PORT_ID" | grep -Po "$ARDUINO_NATIVE_PORT_ID.*/\K[^/]+$"`
+
+      # Build the full address, e.g.: "/dev/sdx"
+      if [[ -n "$PROGRAMMING_PORT_NAME" ]]; then
+          PROGRAMMING_PORT="/dev/$PROGRAMMING_PORT_NAME"
+      fi
+      if [[ -n "$NATIVE_PORT_NAME" ]]; then
+          NATIVE_PORT="/dev/$NATIVE_PORT_NAME"
+      fi
+      ;;
+    'Darwin')
+      export NATIVE_PORT=$(ioreg -p IOUSB -w0 |grep 'Arduino Due@'|sed 's/^.*@//g'|sed -E 's/(^[1-9]*)0+ .*/\1/g'|xargs -Ifoo find /dev  -iname "cu.usbmodemfoo*" 2>/dev/null)
+      ;;
+  esac
+  echo $NATIVE_PORT
 }
 
 PORT=$(port)
