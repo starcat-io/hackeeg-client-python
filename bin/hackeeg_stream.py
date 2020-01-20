@@ -48,6 +48,7 @@ class HackEegTestApplication:
     """HackEEG commandline tool."""
 
     def __init__(self):
+        self.board_number = 0
         self.serial_port_name = None
         self.hackeeg = None
         self.debug = False
@@ -86,7 +87,7 @@ class HackEegTestApplication:
         if char:
             self.read_samples_continuously = False
 
-    def setup(self, samples_per_second=500, gain=1, messagepack=False):
+    def setup(self, samples_per_second=500, gain=1, messagepack=False, board_number=0):
         if samples_per_second not in SPEEDS.keys():
             raise HackEegTestApplicationException("{} is not a valid speed; valid speeds are {}".format(
                 samples_per_second, sorted(SPEEDS.keys())))
@@ -94,17 +95,20 @@ class HackEegTestApplication:
             raise HackEegTestApplicationException("{} is not a valid gain; valid gains are {}".format(
                 gain, sorted(GAINS.keys())))
 
+        self.hackeeg.set_current_board(board_number)
         self.hackeeg.stop_and_sdatac_messagepack()
         self.hackeeg.sdatac()
         self.hackeeg.blink_board_led()
         sample_mode = SPEEDS[samples_per_second] | ads1299.CONFIG1_const
         self.hackeeg.wreg(ads1299.CONFIG1, sample_mode)
+        result = self.hackeeg.rreg(ads1299.CONFIG1).get(self.hackeeg.DataKey)
+        assert sample_mode == result
 
         gain_setting = GAINS[gain]
 
         self.hackeeg.disable_all_channels()
         if self.channel_test:
-            self.channel_config_test()
+            self.channel_config_test(board_number)
         else:
             self.channel_config_input(gain_setting)
 
@@ -146,7 +150,7 @@ class HackEegTestApplication:
         self.hackeeg.wreg(ads1299.CHnSET + 7, ads1299.ELECTRODE_INPUT | gain_setting)
         self.hackeeg.wreg(ads1299.CHnSET + 8, ads1299.ELECTRODE_INPUT | gain_setting)
 
-    def channel_config_test(self):
+    def channel_config_test(self, board_number):
         # test_signal_mode = ads1299.INT_TEST_DC | ads1299.CONFIG2_const
         test_signal_mode = ads1299.INT_TEST_4HZ | ads1299.CONFIG2_const
         self.hackeeg.wreg(ads1299.CONFIG2, test_signal_mode)
@@ -157,7 +161,8 @@ class HackEegTestApplication:
         self.hackeeg.wreg(ads1299.CHnSET + 5, ads1299.BIAS_DRP | ads1299.GAIN_1X)
         self.hackeeg.wreg(ads1299.CHnSET + 6, ads1299.TEMP | ads1299.GAIN_1X)
         self.hackeeg.wreg(ads1299.CHnSET + 7, ads1299.TEST_SIGNAL | ads1299.GAIN_1X)
-        self.hackeeg.disable_channel(8)
+        self.hackeeg.wreg(ads1299.CHnSET + 7, ads1299.INT_TEST_DC| ads1299.GAIN_1X)
+        self.hackeeg.disable_channel(board_number+1)
 
         # all channels enabled
         # for channel in range(1, 9):
@@ -197,6 +202,8 @@ class HackEegTestApplication:
         parser.add_argument("--hex", "-H",
                             help=f"hex mode– output sample data in hexidecimal format for debugging",
                             action="store_true")
+        parser.add_argument("--board-number", "-B", help="which board to use in a multiboard stack",
+                            default=0, choices=range(0, 4), type=int)
         parser.add_argument("--quiet", "-q",
                             help=f"quiet mode– do not print sample data (used for performance testing)",
                             action="store_true")
@@ -224,9 +231,11 @@ class HackEegTestApplication:
         self.channel_test = args.channel_test
         self.quiet = args.quiet
         self.hex = args.hex
+        self.board_number = args.board_number
         self.messagepack = args.messagepack
         self.hackeeg.connect()
-        self.setup(samples_per_second=self.samples_per_second, gain=self.gain, messagepack=self.messagepack)
+        self.setup(samples_per_second=self.samples_per_second, gain=self.gain,
+                   messagepack=self.messagepack, board_number=self.board_number)
 
     def process_sample(self, result, samples):
         if result:

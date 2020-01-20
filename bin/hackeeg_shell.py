@@ -5,6 +5,11 @@ import cmd
 import sys
 import time
 
+try:
+    import readline
+except:
+    pass  # readline not available
+
 import hackeeg
 from hackeeg import ads1299
 
@@ -63,6 +68,9 @@ class HackEEGShell(cmd.Cmd):
         else:
             print(f"{item:02d} ", end='')
         print()
+
+    def emptyline(self):
+        pass
 
     def do_debug(self, arg):
         """Enables debugging output in the client software. Usage: debug <on|off>"""
@@ -145,6 +153,34 @@ class HackEEGShell(cmd.Cmd):
         time.sleep(0.2)
         self._format_response(self.hackeeg.boardledoff())
 
+    def do_blinkall(self, arg):
+        """Turns all four HackEEG boards LED off, then on, then off."""
+        self.all_leds_off()
+        self.all_leds_on()
+        time.sleep(0.2)
+        self.all_leds_off()
+
+    def do_cylon(self, arg):
+        """Turns the HackEEG boards LEDs on and off in a Cylon eye pattern."""
+        self.all_leds_off()
+        sequence = [0, 1, 2, 3, 2, 1, 0, 1, 2, 3, 2, 1, 0]
+        for board in sequence:
+            self.hackeeg.set_current_board(board)
+            self.hackeeg.boardledon()
+            time.sleep(0.2)
+            self.hackeeg.boardledoff()
+        self.all_leds_off()
+
+    def all_leds_off(self):
+        for board in range(0, 4):
+            self.hackeeg.set_current_board(board)
+            self.hackeeg.boardledoff()
+
+    def all_leds_on(self):
+        for board in range(0, 4):
+            self.hackeeg.set_current_board(board)
+            self.hackeeg.boardledon()
+
     def do_rreg(self, arg):
         """Reads an ADS1299 register and returns the value."""
         usage = "rreg [register_number]"
@@ -163,7 +199,7 @@ class HackEEGShell(cmd.Cmd):
             self._format_response(self.hackeeg.rreg(arglist[0]))
 
     def do_wreg(self, arg):
-        """Writees an ADS1299 register."""
+        """Writes an ADS1299 register."""
         arglist = parse_registers(arg)
         if len(arglist) == 0:
             print("No register number given.")
@@ -173,6 +209,29 @@ class HackEEGShell(cmd.Cmd):
             print("Too many arguments.")
         else:
             self._format_response(self.hackeeg.wreg(arglist[0], arglist[1]))
+
+    def do_board(self, arg):
+        """Gets or sets the current board number that ADS1299 commands go to."""
+        usage = "board [board_number]"
+        arglist = []
+        try:
+            arglist = parse_registers(arg)
+        except HackEEGArgumentException as e:
+            pass
+        if len(arglist) == 0:
+            result = self.hackeeg.get_current_board()
+            print(result)
+            # print("Current board number is: {}".format(self._format_response(self.hackeeg.get_current_board())))
+        elif len(arglist) > 1:
+            print("Too many arguments.")
+            print(usage)
+        else:
+            self._format_response(self.hackeeg.set_current_board(arglist[0]))
+
+    def do_flush(self, arg):
+        """Just reads all buffered data from the serial port and prints it to the screen. Sometimes useful for testing."""
+        result = self.hackeeg.raw_serial_port.readline()
+        print(result)
 
     def do_wakeup(self, arg):
         """Sends the WAKEUP command to the ADS1299. (Not implemented yet.)"""
@@ -256,6 +315,7 @@ class HackEEGShell(cmd.Cmd):
     def default(self, line):
         if line == 'EOF':
             sys.exit(0)
+        print("Unrecognized command.")
 
     def setup(self, samplesPerSecond=500):
         if samplesPerSecond not in hackeeg.SPEEDS.keys():

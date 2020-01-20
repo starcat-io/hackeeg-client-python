@@ -107,6 +107,7 @@ class HackEEGBoard:
             if not connected:
                 raise HackEEGException("Can't connect to Arduino")
         self.sdatac()
+        self.serial_port.read()
 
     def _serial_write(self, command):
         self.serial_port.write(command)
@@ -168,14 +169,14 @@ class HackEEGBoard:
     def read_response(self, serial_port=None):
         """read a response from the Arduino– must be in JSON Lines mode"""
         message = self._serial_readline(serial_port=serial_port)
+        if self.debug:
+            print(f"read_response line: {message}")
         try:
             response_obj = json.loads(message)
         except UnicodeDecodeError:
             response_obj = None
         # except JSONDecodeError:
         #     response_obj = None
-        if self.debug:
-            print(f"read_response line: {message}")
         if self.debug:
             print("json response:")
             print(self.format_json(response_obj))
@@ -212,7 +213,7 @@ class HackEEGBoard:
         new_command_obj = {self.CommandKey: command, self.ParametersKey: parameters}
         new_command = json.dumps(new_command_obj)
         if self.debug:
-            print("json command:")
+            print(f"json command: {new_command_obj}")
             print(self.format_json(new_command_obj))
         self._serial_write(new_command)
         self._serial_write('\n')
@@ -225,6 +226,9 @@ class HackEEGBoard:
             parameters = []
         self.send_command(command, parameters)
         response = self.read_response(serial_port=serial_port)
+        if self.debug:
+            print(f"json response: {response}")
+            print(self.format_json(response))
         return response
 
     def _sense_protocol_mode(self):
@@ -247,8 +251,18 @@ class HackEEGBoard:
     def rreg(self, register):
         command = "rreg"
         parameters = [register]
-        response = self.execute_command(command, parameters)
-        return response
+        return self.execute_command(command, parameters)
+
+    def get_current_board(self):
+        return self.execute_command("get_current_board")
+
+    def set_current_board(self, board_number):
+        command = "set_current_board"
+        parameters = [board_number]
+        return self.execute_command(command, parameters)
+
+    def setup_board(self):
+        return self.execute_command("setup_board")
 
     def nop(self):
         return self.execute_command("nop")
