@@ -241,6 +241,7 @@ class HackEegTestApplication:
         if result:
             status_code = result.get(self.hackeeg.MpStatusCodeKey)
             data = result.get(self.hackeeg.MpDataKey)
+            board = result.get(self.hackeeg.MpBoardKey)
             samples.append(result)
             if status_code == Status.Ok and data:
                 decoded_data = result.get(self.hackeeg.DecodedDataKey)
@@ -254,7 +255,7 @@ class HackEegTestApplication:
                     data_hex = decoded_data.get('data_hex')
                     if not self.quiet:
                         print(
-                            f"timestamp:{timestamp} sample_number: {sample_number}| gpio:{ads_gpio} loff_statp:{loff_statp} loff_statn:{loff_statn}   ",
+                            f"board: {board} timestamp:{timestamp} sample_number: {sample_number}| gpio:{ads_gpio} loff_statp:{loff_statp} loff_statn:{loff_statn}   ",
                             end='')
                         if self.hex:
                             print(data_hex)

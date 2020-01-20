@@ -55,6 +55,7 @@ class HackEEGBoard:
     ParametersKey = "PARAMETERS"
     HeadersKey = "HEADERS"
     DataKey = "DATA"
+    BoardKey = "BOARD"
     DecodedDataKey = "DECODED_DATA"
     StatusCodeKey = "STATUS_CODE"
     StatusTextKey = "STATUS_TEXT"
@@ -63,6 +64,7 @@ class HackEEGBoard:
     MpParametersKey = "P"
     MpHeadersKey = "H"
     MpDataKey = "D"
+    MpBoardKey = "B"
     MpStatusCodeKey = "C"
     MpStatusTextKey = "T"
     MaxConnectionAttempts = 10
@@ -133,6 +135,9 @@ class HackEEGBoard:
         The format is:
         1100 + LOFF_STATP[0:7] + LOFF_STATN[0:7] + bits[4:7] of the GPIOregister"""
         if response:
+            board = response.get(self.BoardKey, 0)
+            if board is None:
+                board = response.get(self.MpBoardKey)
             data = response.get(self.DataKey)
             if data is None:
                 data = response.get(self.MpDataKey)
@@ -157,9 +162,10 @@ class HackEEGBoard:
                     sample = int.from_bytes(data[channel_offset:channel_offset + 3], byteorder='big', signed=True)
                     channel_data.append(sample)
 
-                decoded_data = dict(timestamp=timestamp, sample_number=sample_number, ads_status=ads_status,
-                                    ads_gpio=ads_gpio, loff_statn=loff_statn, loff_statp=loff_statp, extra=extra,
-                                    channel_data=channel_data, data_hex=data_hex, data_raw=data)
+                decoded_data = dict(board=board, timestamp=timestamp, sample_number=sample_number,
+                                    ads_status=ads_status, ads_gpio=ads_gpio, loff_statn=loff_statn,
+                                    loff_statp=loff_statp, extra=extra, channel_data=channel_data,
+                                    data_hex=data_hex, data_raw=data)
                 response[self.DecodedDataKey] = decoded_data
         return response
 
