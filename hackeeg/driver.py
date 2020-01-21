@@ -63,10 +63,14 @@ class HackEEGBoard:
     MpCommandKey = "C"
     MpParametersKey = "P"
     MpHeadersKey = "H"
-    MpDataKey = "D"
-    MpBoardKey = "B"
-    MpStatusCodeKey = "C"
-    MpStatusTextKey = "T"
+    ShortDataKey = "D"
+    ShortBoardKey = "B"
+    ShortStatusCodeKey = "C"
+    ShortStatusTextKey = "T"
+    MpDataKey = bytes("D", "utf-8")
+    MpBoardKey = bytes("B", "utf-8")
+    MpStatusCodeKey = bytes("C", "utf-8")
+    MpStatusTextKey = bytes("T", "utf-8")
     MaxConnectionAttempts = 10
     ConnectionSleepTime = 0.1
 
@@ -80,11 +84,8 @@ class HackEEGBoard:
         if serial_port_path:
             self.raw_serial_port = serial.serial_for_url(serial_port_path, baudrate=self.baudrate, timeout=0.1)
             self.raw_serial_port.reset_input_buffer()
-            # self.serial_port= self.raw_serial_port
             self.serial_port = io.TextIOWrapper(io.BufferedRWPair(self.raw_serial_port, self.raw_serial_port))
-            # self.binaryBufferedSerialPort = io.BufferedReader(io.BufferedRWPair(self.raw_serial_port, self.raw_serial_port))
-            # self.message_pack_unpacker = msgpack.Unpacker(self.binaryBufferedSerialPort, raw=False, use_list=False)
-            self.message_pack_unpacker = msgpack.Unpacker(self.raw_serial_port, raw=False, use_list=False)
+            self.message_pack_unpacker = msgpack.Unpacker(self.raw_serial_port, raw=True, use_list=False)
 
     def connect(self):
         self.mode = self._sense_protocol_mode()
@@ -127,7 +128,11 @@ class HackEEGBoard:
     def _serial_read_messagepack_message(self):
         message = self.message_pack_unpacker.unpack()
         if self.debug:
-            print(f"message: {message}")
+            raw_message = msgpack.packb(message)
+            hex = ' '.join('{:02x}'.format(x) for x in raw_message)
+            print(f"messagepack unpacked raw_message bytes: {hex}")
+            repacked_message = msgpack.unpackb(raw_message)
+            print(f"repacked_message: {repacked_message}")
         return message
 
     def _decode_data(self, response):
@@ -135,18 +140,31 @@ class HackEEGBoard:
         The format is:
         1100 + LOFF_STATP[0:7] + LOFF_STATN[0:7] + bits[4:7] of the GPIOregister"""
         if response:
-            board = response.get(self.BoardKey, 0)
-            if board is None:
-                board = response.get(self.MpBoardKey)
-            data = response.get(self.DataKey)
-            if data is None:
+            if self.mode == self.MessagePackMode:
+                if self.debug:
+                    print("decode: messagepack")
+                status = response.get(self.MpStatusCodeKey)
+                board = response.get(self.MpBoardKey, 0)
                 data = response.get(self.MpDataKey)
-                if type(data) is str:
-                    try:
-                        data = base64.b64decode(data)
-                    except binascii.Error:
-                        print(f"incorrect padding: {data}")
-            if data and (type(data) is list or type(data) is bytes):
+            elif self.mode == self.JsonLinesMode:
+                if self.debug:
+                    print("decode: json")
+                status = response.get(self.ShortStatusCodeKey)
+                board = response.get(self.ShortBoardKey, 0)
+                data = response.get(self.ShortDataKey)
+            else:
+                if self.debug:
+                    print(f"decode: unknown mode: {self.mode}")
+            if self.debug:
+                print(f"decode: {status} {board} {data}")
+            if data and type(data) is str:
+                try:
+                    data = base64.b64decode(data)
+                except binascii.Error:
+                    print(f"incorrect padding: {data}")
+            if self.debug:
+                print(f"decode: {type(data)} {data}")
+            if data and (type(data) is tuple or type(data) is bytes):
                 data_hex = ":".join("{:02x}".format(c) for c in data)
                 timestamp = int.from_bytes(data[0:4], byteorder='little')
                 sample_number = int.from_bytes(data[4:8], byteorder='little')
@@ -167,6 +185,8 @@ class HackEEGBoard:
                                     loff_statp=loff_statp, extra=extra, channel_data=channel_data,
                                     data_hex=data_hex, data_raw=data)
                 response[self.DecodedDataKey] = decoded_data
+                if self.debug:
+                    print(decoded_data)
         return response
 
     def set_debug(self, debug):
@@ -205,8 +225,19 @@ class HackEEGBoard:
         result = None
         try:
             result = self._decode_data(response_obj)
+            if self.debug:
+                print(type(result))
+                print(result)
+                for key in result.keys():
+                    print(f"{key}: {type(key)}")
+                print(result.get(self.ShortStatusCodeKey))
+                print(result.get(self.ShortBoardKey))
+                print(result.get(self.ShortDataKey))
+                print(result.get(self.MpStatusCodeKey))
+                print(result.get(self.MpBoardKey))
+                print(result.get(self.MpDataKey))
         except AttributeError:
-            pass
+            raise
         return result
 
     def format_json(self, json_obj):
@@ -303,6 +334,9 @@ class HackEEGBoard:
     def rdata(self):
         return self.execute_command("rdata")
 
+    def rdatac(self):
+        return self.execute_command("rdatac")
+
     def status(self):
         return self.execute_command("status")
 
@@ -327,8 +361,9 @@ class HackEEGBoard:
             response = self.execute_command("messagepack")
             return response
 
-    def rdatac(self):
-        result = self.execute_command("rdatac", serial_port="raw")
+    def stream_data(self):
+        self.serial_port.read()  # discard everything currently in the buffer
+        result = self.execute_command("stream_data", serial_port="raw")
         if self.ok(result):
             self.rdatac_mode = True
         return result

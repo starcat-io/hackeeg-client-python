@@ -79,8 +79,10 @@ class HackEegTestApplication:
 
     def get_sample_number(self, sample):
         decoded_data = sample.get(self.hackeeg.DecodedDataKey)
-        sample_number = decoded_data.get('sample_number', -1)
-        return sample_number
+        if decoded_data is not None:
+            sample_number = decoded_data.get('sample_number', -1)
+            return sample_number
+        return -1
 
     def read_keyboard_input(self):
         char = self.non_blocking_console.get_data()
@@ -94,7 +96,15 @@ class HackEegTestApplication:
         if gain not in GAINS.keys():
             raise HackEegTestApplicationException("{} is not a valid gain; valid gains are {}".format(
                 gain, sorted(GAINS.keys())))
+        for board in range(0, 4):
+            self.setup_one_board(board, samples_per_second, gain)
+        if messagepack:
+            self.hackeeg.messagepack_mode()
+        else:
+            self.hackeeg.jsonlines_mode()
+        self.hackeeg.stream_data()
 
+    def setup_one_board(self, board_number, samples_per_second, gain):
         self.hackeeg.set_current_board(board_number)
         self.hackeeg.stop_and_sdatac_messagepack()
         self.hackeeg.sdatac()
@@ -126,10 +136,6 @@ class HackEegTestApplication:
         # add channels into bias generation
         # self.hackeeg.wreg(ads1299.BIAS_SENSP, ads1299.BIAS8P)
 
-        if messagepack:
-            self.hackeeg.messagepack_mode()
-        else:
-            self.hackeeg.jsonlines_mode()
         self.hackeeg.start()
         self.hackeeg.rdatac()
         return
@@ -239,9 +245,14 @@ class HackEegTestApplication:
 
     def process_sample(self, result, samples):
         if result:
-            status_code = result.get(self.hackeeg.MpStatusCodeKey)
-            data = result.get(self.hackeeg.MpDataKey)
-            board = result.get(self.hackeeg.MpBoardKey)
+            if self.messagepack:
+                status_code = result.get(self.hackeeg.MpStatusCodeKey)
+                data = result.get(self.hackeeg.MpDataKey)
+                board = result.get(self.hackeeg.MpBoardKey)
+            else:
+                status_code = result.get(self.hackeeg.ShortStatusCodeKey)
+                data = result.get(self.hackeeg.ShortDataKey)
+                board = result.get(self.hackeeg.ShortBoardKey)
             samples.append(result)
             if status_code == Status.Ok and data:
                 decoded_data = result.get(self.hackeeg.DecodedDataKey)
