@@ -60,10 +60,10 @@ class HackEegTestApplication:
         self.samples_per_second = 500
         self.gain = 1
         self.max_samples = 5000
-        self.lsl = False
-        self.lsl_info = None
-        self.lsl_outlet = None
-        self.lsl_stream_name = "HackEEG"
+        self.lsl_streams = 0
+        self.lsl_stream_name = "EEG"
+        self.lsl_info = []
+        self.lsl_outlets = []
         self.stream_id = str(uuid.uuid4())
         self.read_samples_continuously = True
         self.continuous_mode = False
@@ -102,6 +102,7 @@ class HackEegTestApplication:
             self.hackeeg.messagepack_mode()
         else:
             self.hackeeg.jsonlines_mode()
+        print(self.hackeeg.status())
         self.hackeeg.stream_data()
 
     def setup_one_board(self, board_number, samples_per_second, gain):
@@ -194,10 +195,10 @@ class HackEegTestApplication:
                             help=f"ADS1299 gain setting for all channels– must be one of {sorted(list(GAINS.keys()))}, default is {self.gain}",
                             default=self.gain, type=int)
         parser.add_argument("--lsl", "-L",
-                            help=f"Send samples to an LSL stream instead of terminal",
-                            action="store_true"),
+                            help=f"Send samples to n LSL streams (0-3 streams, called EEG0, EEG1, EEG2, EEG3, depending on the number given",
+                            default=1, type=int)
         parser.add_argument("--lsl-stream-name", "-N",
-                            help=f"Name of LSL stream to create",
+                            help=f"Base name of LSL stream to create",
                             default=self.lsl_stream_name, type=str),
         parser.add_argument("--messagepack", "-M",
                             help=f"MessagePack mode– use MessagePack format to send sample data to the host, rather than JSON Lines",
@@ -223,13 +224,16 @@ class HackEegTestApplication:
         if args.continuous:
             self.continuous_mode = True
 
-        if args.lsl:
-            self.lsl = True
+        if args.lsl > 0:
+            self.lsl_streams = args.lsl
             if args.lsl_stream_name:
                 self.lsl_stream_name = args.lsl_stream_name
-            self.lsl_info = StreamInfo(self.lsl_stream_name, 'EEG', self.channels, self.samples_per_second, 'int32',
-                                       self.stream_id)
-            self.lsl_outlet = StreamOutlet(self.lsl_info)
+            self.lsl_info = []
+            self.lsl_outlets = []
+            for stream in range(0, self.lsl_streams):
+                self.lsl_info.append(StreamInfo(f"{self.lsl_stream_name}{stream}", 'EEG', self.channels,
+                                                     self.samples_per_second, 'int32', self.stream_id))
+                self.lsl_outlets.append(StreamOutlet(self.lsl_info[stream]))
 
         self.serial_port_name = args.serial_port
         self.hackeeg = hackeeg.HackEEGBoard(self.serial_port_name, baudrate=2000000, debug=self.debug)
@@ -274,8 +278,9 @@ class HackEegTestApplication:
                             for channel_number, sample in enumerate(channel_data):
                                 print(f"{channel_number + 1}:{sample} ", end='')
                             print()
-                    if self.lsl:
-                        self.lsl_outlet.push_sample(channel_data)
+                    if self.lsl_streams > 0:
+                        new_channel_data = channel_data
+                        self.lsl_outlets[board].push_sample(new_channel_data)
                 else:
                     if not self.quiet:
                         print(data)
