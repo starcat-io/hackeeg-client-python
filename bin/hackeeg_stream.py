@@ -97,7 +97,7 @@ class HackEegTestApplication:
             raise HackEegTestApplicationException("{} is not a valid gain; valid gains are {}".format(
                 gain, sorted(GAINS.keys())))
         for board in range(0, 4):
-            self.setup_one_board(board, samples_per_second, gain)
+            self.setup_one_board(board, samples_per_second, gain, board=board)
         if messagepack:
             self.hackeeg.messagepack_mode()
         else:
@@ -105,7 +105,7 @@ class HackEegTestApplication:
         print(self.hackeeg.status())
         self.hackeeg.stream_data()
 
-    def setup_one_board(self, board_number, samples_per_second, gain):
+    def setup_one_board(self, board_number, samples_per_second, gain, board=None):
         self.hackeeg.set_current_board(board_number)
         self.hackeeg.stop_and_sdatac_messagepack()
         self.hackeeg.sdatac()
@@ -121,7 +121,7 @@ class HackEegTestApplication:
         if self.channel_test:
             self.channel_config_test(board_number)
         else:
-            self.channel_config_input(gain_setting)
+            self.channel_config_input(gain_setting, board=board)
 
 
         # Route reference electrode to SRB1: JP8:1-2, JP7:NC (not connected)
@@ -141,7 +141,12 @@ class HackEegTestApplication:
         self.hackeeg.rdatac()
         return
 
-    def channel_config_input(self, gain_setting):
+    def channel_config_input(self, gain_setting, board=None):
+        self.hackeeg.disable_all_channels()
+        # if board == 1 or board == 3:
+        self.hackeeg.wreg(ads1299.CHnSET + 6, ads1299.ELECTRODE_INPUT | gain_setting)
+
+    def channel_config_input2(self, gain_setting):
         # all channels enabled
         # for channel in range(1, 9):
         #     self.hackeeg.wreg(ads1299.CHnSET + channel, ads1299.TEST_SIGNAL | gain_setting )
