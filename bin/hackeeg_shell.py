@@ -95,7 +95,9 @@ class HackEEGShell(cmd.Cmd):
 
     def do_version(self, arg):
         """Returns HackEEG driver version number."""
-        self._format_response(self.hackeeg.version())
+        result = self.hackeeg.version()
+        print(result[self.hackeeg.StatusTextKey])
+        self._format_response(result)
 
     def do_status(self, arg):
         """Returns HackEEG driver status."""
@@ -256,6 +258,7 @@ class HackEEGShell(cmd.Cmd):
     def default(self, line):
         if line == 'EOF':
             sys.exit(0)
+        print("Unrecognized command.")
 
     def setup(self, samplesPerSecond=500):
         if samplesPerSecond not in hackeeg.SPEEDS.keys():

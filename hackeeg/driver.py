@@ -107,6 +107,9 @@ class HackEEGBoard:
             if not connected:
                 raise HackEEGException("Can't connect to Arduino")
         self.sdatac()
+        line = self.serial_port.readline()
+        while line:
+            line = self.serial_port.readline()
 
     def _serial_write(self, command):
         self.serial_port.write(command)
@@ -282,6 +285,10 @@ class HackEEGBoard:
 
     def rdata(self):
         return self.execute_command("rdata")
+
+    def version(self):
+        result = self.execute_command("version")
+        return result
 
     def status(self):
         return self.execute_command("status")
