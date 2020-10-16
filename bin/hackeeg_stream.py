@@ -77,8 +77,7 @@ class HackEegTestApplication:
         return len(missing_samples)
 
     def get_sample_number(self, sample):
-        decoded_data = sample.get(self.hackeeg.DecodedDataKey)
-        sample_number = decoded_data.get('sample_number', -1)
+        sample_number = sample.get('sample_number', -1)
         return sample_number
 
     def read_keyboard_input(self):
@@ -234,30 +233,28 @@ class HackEegTestApplication:
             data = result.get(self.hackeeg.MpDataKey)
             samples.append(result)
             if status_code == Status.Ok and data:
-                decoded_data = result.get(self.hackeeg.DecodedDataKey)
-                if decoded_data:
-                    timestamp = decoded_data.get('timestamp')
-                    sample_number = decoded_data.get('sample_number')
-                    ads_gpio = decoded_data.get('ads_gpio')
-                    loff_statp = decoded_data.get('loff_statp')
-                    loff_statn = decoded_data.get('loff_statn')
-                    channel_data = decoded_data.get('channel_data')
-                    data_hex = decoded_data.get('data_hex')
-                    if not self.quiet:
-                        print(
-                            f"timestamp:{timestamp} sample_number: {sample_number}| gpio:{ads_gpio} loff_statp:{loff_statp} loff_statn:{loff_statn}   ",
-                            end='')
-                        if self.hex:
-                            print(data_hex)
-                        else:
-                            for channel_number, sample in enumerate(channel_data):
-                                print(f"{channel_number + 1}:{sample} ", end='')
-                            print()
-                    if self.lsl:
-                        self.lsl_outlet.push_sample(channel_data)
-                else:
-                    if not self.quiet:
-                        print(data)
+                if not self.quiet:
+                    timestamp = result.get('timestamp')
+                    sample_number = result.get('sample_number')
+                    ads_gpio = result.get('ads_gpio')
+                    loff_statp = result.get('loff_statp')
+                    loff_statn = result.get('loff_statn')
+                    channel_data = result.get('channel_data')
+                    data_hex = result.get('data_hex')
+                    print(
+                        f"timestamp:{timestamp} sample_number: {sample_number}| gpio:{ads_gpio} loff_statp:{loff_statp} loff_statn:{loff_statn}   ",
+                        end='')
+                    if self.hex:
+                        print(data_hex)
+                    else:
+                        for channel_number, sample in enumerate(channel_data):
+                            print(f"{channel_number + 1}:{sample} ", end='')
+                        print()
+                if self.lsl:
+                    self.lsl_outlet.push_sample(channel_data)
+            else:
+                if not self.quiet:
+                    print(data)
         else:
             print("no data to decode")
             print(f"result: {result}")
