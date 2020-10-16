@@ -21,11 +21,11 @@ SAMPLE_LENGTH_IN_BYTES = 38  # 216 bits encoded with base64 + '\r\n\'
 
 SPEEDS = {250: ads1299.HIGH_RES_250_SPS,
           500: ads1299.HIGH_RES_500_SPS,
-          1024: ads1299.HIGH_RES_1k_SPS,
-          2048: ads1299.HIGH_RES_2k_SPS,
-          4096: ads1299.HIGH_RES_4k_SPS,
-          8192: ads1299.HIGH_RES_8k_SPS,
-          16384: ads1299.HIGH_RES_16k_SPS}
+          1000: ads1299.HIGH_RES_1k_SPS,
+          2000: ads1299.HIGH_RES_2k_SPS,
+          4000: ads1299.HIGH_RES_4k_SPS,
+          8000: ads1299.HIGH_RES_8k_SPS,
+          16000: ads1299.HIGH_RES_16k_SPS}
 
 GAINS = {1: ads1299.GAIN_1X,
          2: ads1299.GAIN_2X,
@@ -134,6 +134,7 @@ class HackEEGBoard:
         """decode ADS1299 sample status bits - datasheet, p36
         The format is:
         1100 + LOFF_STATP[0:7] + LOFF_STATN[0:7] + bits[4:7] of the GPIOregister"""
+        error = False
         if response:
             data = response.get(self.DataKey)
             if data is None:
@@ -143,8 +144,11 @@ class HackEEGBoard:
                         data = base64.b64decode(data)
                     except binascii.Error:
                         print(f"incorrect padding: {data}")
+
             if data and (type(data) is list or type(data) is bytes):
                 data_hex = ":".join("{:02x}".format(c) for c in data)
+                if error:
+                    print(data_hex)
                 timestamp = int.from_bytes(data[0:4], byteorder='little')
                 sample_number = int.from_bytes(data[4:8], byteorder='little')
                 ads_status = int.from_bytes(data[8:11], byteorder='big')
@@ -159,10 +163,16 @@ class HackEEGBoard:
                     sample = int.from_bytes(data[channel_offset:channel_offset + 3], byteorder='big', signed=True)
                     channel_data.append(sample)
 
-                decoded_data = dict(timestamp=timestamp, sample_number=sample_number, ads_status=ads_status,
-                                    ads_gpio=ads_gpio, loff_statn=loff_statn, loff_statp=loff_statp, extra=extra,
-                                    channel_data=channel_data, data_hex=data_hex, data_raw=data)
-                response[self.DecodedDataKey] = decoded_data
+                response['timestamp'] = timestamp
+                response['sample_number'] = sample_number
+                response['ads_status'] = ads_status
+                response['ads_gpio'] = ads_gpio
+                response['loff_statn'] = loff_statn
+                response['loff_statp'] = loff_statp
+                response['extra'] = extra
+                response['channel_data'] = channel_data
+                response['data_hex'] = data_hex
+                response['data_raw'] = data
         return response
 
     def set_debug(self, debug):
