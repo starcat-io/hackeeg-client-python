@@ -7,13 +7,10 @@
 # (--messagepack option)
 
 import argparse
-import threading
 import uuid
 import time
 import sys
 import select
-import tty
-import termios
 
 from pylsl import StreamInfo, StreamOutlet
 
@@ -38,9 +35,24 @@ class NonBlockingConsole(object):
     def __exit__(self, type, value, traceback):
         termios.tcsetattr(sys.stdin, termios.TCSADRAIN, self.old_settings)
 
+    def init(self):
+        import tty
+        import termios
+
     def get_data(self):
         if select.select([sys.stdin], [], [], 0) == ([sys.stdin], [], []):
             return sys.stdin.read(1)
+        return False
+
+
+class WindowsNonBlockingConsole(object):
+    def init(self):
+        import msvcrt
+
+    def get_data(self):
+        if msvcrt.kbhit():
+            char = msvcrt.getch()
+            return char
         return False
 
 
@@ -66,7 +78,13 @@ class HackEegTestApplication:
         self.stream_id = str(uuid.uuid4())
         self.read_samples_continuously = True
         self.continuous_mode = False
-        self.non_blocking_console = NonBlockingConsole()
+
+        print(f"platform: {sys.platform}")
+        if sys.platform == "linux" or sys.platform == "linux2" or sys.platform == "darwin":
+            self.non_blocking_console = NonBlockingConsole()
+        elif sys.platform == "win32":
+            self.non_blocking_console = WindowsNonBlockingConsole()
+        self.non_blocking_console.init()
         # self.debug = True
 
     def find_dropped_samples(self, samples, number_of_samples):
@@ -110,11 +128,11 @@ class HackEegTestApplication:
 
         # Route reference electrode to SRB1: JP8:1-2, JP7:NC (not connected)
         # use this with humans to reduce noise
-        self.hackeeg.wreg(ads1299.MISC1, ads1299.SRB1 | ads1299.MISC1_const)
+        #self.hackeeg.wreg(ads1299.MISC1, ads1299.SRB1 | ads1299.MISC1_const)
 
         # Single-ended mode - setting SRB1 bit sends mid-supply voltage to the N inputs
         # use this with a signal generator
-        # self.hackeeg.wreg(ads1299.MISC1, ads1299.SRB1)
+        self.hackeeg.wreg(ads1299.MISC1, ads1299.SRB1)
 
         # Dual-ended mode
         self.hackeeg.wreg(ads1299.MISC1, ads1299.MISC1_const)
@@ -228,6 +246,8 @@ class HackEegTestApplication:
         self.setup(samples_per_second=self.samples_per_second, gain=self.gain, messagepack=self.messagepack)
 
     def process_sample(self, result, samples):
+        data = None
+        channel_data = None
         if result:
             status_code = result.get(self.hackeeg.MpStatusCodeKey)
             data = result.get(self.hackeeg.MpDataKey)
@@ -250,7 +270,7 @@ class HackEegTestApplication:
                         for channel_number, sample in enumerate(channel_data):
                             print(f"{channel_number + 1}:{sample} ", end='')
                         print()
-                if self.lsl:
+                if self.lsl and channel_data:
                     self.lsl_outlet.push_sample(channel_data)
             else:
                 if not self.quiet:

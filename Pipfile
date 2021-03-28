@@ -19,6 +19,7 @@ autopep8 = "*"
 gnureadline = "*"
 pylsl = "*"
 twine = "*"
+hackeeg = {path = "."}
 
 [requires]
-python_version = "3.8"
+python_version = "3"
