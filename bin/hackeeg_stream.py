@@ -11,7 +11,6 @@ import uuid
 import time
 import sys
 import select
-import tty
 
 from pylsl import StreamInfo, StreamOutlet
 
@@ -37,6 +36,7 @@ class NonBlockingConsole(object):
         termios.tcsetattr(sys.stdin, termios.TCSADRAIN, self.old_settings)
 
     def init(self):
+        import tty
         import termios
 
     def get_data(self):
@@ -79,11 +79,12 @@ class HackEegTestApplication:
         self.read_samples_continuously = True
         self.continuous_mode = False
 
+        print(f"platform: {sys.platform}")
         if sys.platform == "linux" or sys.platform == "linux2" or sys.platform == "darwin":
             self.non_blocking_console = NonBlockingConsole()
         elif sys.platform == "win32":
             self.non_blocking_console = WindowsNonBlockingConsole()
-        self.non_blocking_console.init(self)
+        self.non_blocking_console.init()
         # self.debug = True
 
     def find_dropped_samples(self, samples, number_of_samples):
