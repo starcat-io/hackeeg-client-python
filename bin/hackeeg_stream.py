@@ -246,6 +246,8 @@ class HackEegTestApplication:
         self.setup(samples_per_second=self.samples_per_second, gain=self.gain, messagepack=self.messagepack)
 
     def process_sample(self, result, samples):
+        data = None
+        channel_data = None
         if result:
             status_code = result.get(self.hackeeg.MpStatusCodeKey)
             data = result.get(self.hackeeg.MpDataKey)
@@ -268,7 +270,7 @@ class HackEegTestApplication:
                         for channel_number, sample in enumerate(channel_data):
                             print(f"{channel_number + 1}:{sample} ", end='')
                         print()
-                if self.lsl:
+                if self.lsl and channel_data:
                     self.lsl_outlet.push_sample(channel_data)
             else:
                 if not self.quiet:
