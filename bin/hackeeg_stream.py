@@ -35,7 +35,7 @@ class NonBlockingConsole(object):
     def __exit__(self, type, value, traceback):
         termios.tcsetattr(sys.stdin, termios.TCSADRAIN, self.old_settings)
 
-    def init(self):
+    def init(self, serial_port=None):
         import tty
         import termios
 
@@ -46,6 +46,19 @@ class NonBlockingConsole(object):
 
 
 class WindowsNonBlockingConsole(object):
+    def __init__(self):
+        self.serial_port = None
+
+    def init(self, serial_port=None):
+        self.serial_port = serial_port
+
+    def get_data(self):
+        if self.serial_port.in_waiting > 0:
+            return self.serial_port.read(1)
+        return False
+
+
+class OldWindowsNonBlockingConsole(object):
     def init(self):
         import msvcrt
 
@@ -237,6 +250,7 @@ class HackEegTestApplication:
 
         self.serial_port_name = args.serial_port
         self.hackeeg = hackeeg.HackEEGBoard(self.serial_port_name, baudrate=2000000, debug=self.debug)
+        self.non_blocking_console.init(self.hackeeg.raw_serial_port)
         self.max_samples = args.samples
         self.channel_test = args.channel_test
         self.quiet = args.quiet
