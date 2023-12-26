@@ -44,6 +44,12 @@ def main():
 
     app.run(port = 8069, dev_tools_ui=True, #debug=True,
             dev_tools_hot_reload =True, threaded=True)
+            
+
+def get_datapoint():
+    global counter
+    datapoint = counter/10.0
+    return datapoint
 
 
 # Define callback to update graph
@@ -56,7 +62,8 @@ def streamFig(value):
     global app, cols, df, counter
     counter += 1
     
-    df0 = pd.DataFrame(np.array([counter/10.0], dtype=float))
+    datapoint = get_datapoint()
+    df0 = pd.DataFrame(np.array([datapoint], dtype=float))
     df2 = np.sin(df0)
 
     df = pd.concat([df, df2], ignore_index=True) 
