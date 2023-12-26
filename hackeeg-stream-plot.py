@@ -56,12 +56,8 @@ def streamFig(value):
     global app, cols, df, counter
     counter += 1
     
-    df0 = pd.DataFrame({
-        'x': np.array([counter/10.0], dtype=float)
-    })
-
-    # Compute the sine of each x value and store it in the DataFrame
-    df2 = np.sin(df0['x'])
+    df0 = pd.DataFrame(np.array([counter/10.0], dtype=float))
+    df2 = np.sin(df0)
 
     df = pd.concat([df, df2], ignore_index=True) 
     df3=df.copy()
