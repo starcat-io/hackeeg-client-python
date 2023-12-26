@@ -58,6 +58,17 @@ def streamFig(value):
     df3=df.copy()
     df3 = df3.cumsum()
     fig = df3.plot(template = 'plotly_dark')
+
+    colors = px.colors.qualitative.Plotly
+    for i, col in enumerate(df3.columns):
+            fig.add_annotation(x=df3.index[-1], y=df3[col].iloc[-1],
+                                   text = str(df3[col].iloc[-1])[:4],
+                                   align="right",
+                                   arrowcolor = 'rgba(0,0,0,0)',
+                                   ax=25,
+                                   ay=0,
+                                   yanchor = 'middle',
+                                   font = dict(color = colors[i]))
     return(fig)
 
 if __name__ == "__main__":
