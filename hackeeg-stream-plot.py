@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-# from https://stackoverflow.com/a/63677698/431222
+import math
 
 import pandas as pd
 import numpy as np
@@ -12,7 +12,8 @@ from dash.dependencies import Input, Output
 GRAPH_SIZE_IN_ROWS = 100
 
 def main():
-    global app, cols, df
+    global app, cols, df, counter
+    counter = 0
 
     # code and plot setup
 
@@ -52,12 +53,17 @@ def main():
 )
 def streamFig(value):
     
-    global app, cols, df
+    global app, cols, df, counter
+    counter += 1
     
-    Y = np.random.randn(1,len(cols))  
-    df2 = pd.DataFrame(Y, columns = cols)
+    df0 = pd.DataFrame({
+        'x': np.array([counter/10.0], dtype=float)
+    })
+
+    # Compute the sine of each x value and store it in the DataFrame
+    df2 = np.sin(df0['x'])
+
     df = pd.concat([df, df2], ignore_index=True) 
-    df.tail()
     df3=df.copy()
     df3 = df3.cumsum()
     df3_number_of_rows = len(df3)
@@ -66,7 +72,6 @@ def streamFig(value):
     else:
          number_of_rows_to_display = GRAPH_SIZE_IN_ROWS
     df4 = df3.iloc[-number_of_rows_to_display:]
-    # df4 = df3[-number_of_rows_to_display:]
     fig = df4.plot(template = 'plotly_dark')
 
     colors = px.colors.qualitative.Plotly
