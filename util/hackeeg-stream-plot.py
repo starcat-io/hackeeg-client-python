@@ -26,7 +26,6 @@ class Plotter:
         self.df = None
     
     def callbacks(self, app):
-        # Define callback to update graph
         @app.callback(
             Output('graph', 'figure'),
             [Input('interval-component', "n_intervals")]
@@ -60,28 +59,22 @@ class Plotter:
 
 
     def main(self):
-        # code and plot setup
-
-        # settings
         pd.options.plotting.backend = "plotly"
-        countdown = 20
 
-        # sample dataframe of a wide format
         np.random.seed(4) 
         self.cols = list('a')
-        # X = np.random.randn(50,len(self.cols))  
+
         X = pd.DataFrame(np.array([self.get_datapoint()], dtype=float))
         self.df=pd.DataFrame(X, columns=self.cols)
         self.df.iloc[0]=0;
 
-        # plotly figure
         fig = self.df.plot(template = 'plotly_dark')
 
         self.app.layout = html.Div([
             html.H1("Streaming of random data"),
                     dcc.Interval(
                     id='interval-component',
-                    interval=100, # in milliseconds
+                    interval=100, # milliseconds
                     n_intervals=0
                 ),
             dcc.Graph(id='graph'),
