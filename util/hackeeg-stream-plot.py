@@ -6,6 +6,7 @@ import time
 import sys
 import select
 from multiprocessing import Process, Queue
+import logging
 
 from pylsl import StreamInfo, StreamOutlet
 
@@ -22,7 +23,7 @@ from dash import callback, Dash, dcc, html
 from dash.dependencies import Input, Output
 
 DEFAULT_NUMBER_OF_SAMPLES_TO_CAPTURE = 50000
-GRAPH_SIZE_IN_ROWS = 100
+GRAPH_SIZE_IN_ROWS = 15000
 
 class Plotter:
     def __init__(self, app=None, queue=None):
@@ -37,6 +38,8 @@ class Plotter:
 
         self.cols = None
         self.df = None
+        log = logging.getLogger('werkzeug')
+        log.setLevel(logging.ERROR)
     
     def callbacks(self, app):
         @app.callback(
@@ -44,9 +47,12 @@ class Plotter:
             [Input('interval-component', "n_intervals")]
         )
         def streamFig(value):
-            time, reading = self.get_datapoint()
-            # print(f'time: {time}    reading:{reading}')
-            self.df = pd.concat([self.df, pd.DataFrame({'time': [time], 'channel_7': [reading]})], axis=0)
+            for i in range(0, 100):
+                time, reading = self.get_datapoint()
+                # print(f'time: {time}    reading:{reading}')
+                new_record_df = pd.DataFrame({'time': [time], 'channel_7': [reading]}, columns=self.cols)
+                self.df = pd.concat([self.df, new_record_df])
+            # print(self.df.tail())
 
             number_of_rows = len(self.df)
             if number_of_rows < GRAPH_SIZE_IN_ROWS:
@@ -54,6 +60,7 @@ class Plotter:
             else:
                 number_of_rows_to_display = GRAPH_SIZE_IN_ROWS
             df_window = self.df.iloc[-number_of_rows_to_display:]
+            # df_window = self.df
             fig = px.line(df_window, x='time', y='channel_7', markers = True, template = 'plotly_dark')
             fig.update_layout(title='HackEEG data', xaxis_title='Time (seconds)', yaxis_title='Reading')
 
@@ -71,18 +78,22 @@ class Plotter:
 
 
     def get_datapoint(self):
-        return self.queue.get()
+        return self.queue.get(block=True)
 
     def main(self):
         pd.options.plotting.backend = "plotly"
 
         np.random.seed(4) 
         self.cols = ['time', 'channel_7']
-        self.df = pd.DataFrame(columns = self.cols)
-        # self.df = self.df.set_index('time')
+        self.df = pd.DataFrame({'time': [0.1], 'channel_7': [1]}, columns=self.cols)
+        self.df.set_index('time', inplace=True)
+        print(self.df.tail())
+        # print(self.df.columns)
 
         time, reading = self.get_datapoint()
-        self.df.loc[-1] = [time, reading]
+        new_record_df = pd.DataFrame({'time': [time], 'channel_7': [reading]}, columns=self.cols)
+        self.df = pd.concat([self.df, new_record_df])
+        print(self.df.tail())
 
         # X = pd.DataFrame(np.array([self.get_datapoint()], dtype=float))
         # self.df=pd.DataFrame(X, columns=self.cols)
