@@ -23,7 +23,7 @@ from dash import callback, Dash, dcc, html
 from dash.dependencies import Input, Output
 
 DEFAULT_NUMBER_OF_SAMPLES_TO_CAPTURE = 50000
-GRAPH_SIZE_IN_ROWS = 15000
+GRAPH_SIZE_IN_ROWS = 150000
 SCALE_FACTOR = 1000000.0
 
 class Plotter:
@@ -48,7 +48,7 @@ class Plotter:
             [Input('interval-component', "n_intervals")]
         )
         def streamFig(value):
-            for i in range(0, 100):
+            for i in range(0, 50):
                 time, reading = self.get_datapoint()
                 # print(f'time: {time}    reading:{reading}')
                 new_record_df = pd.DataFrame({'time': [time], 'channel_7': [reading]}, columns=self.cols)
@@ -62,9 +62,12 @@ class Plotter:
                 number_of_rows_to_display = GRAPH_SIZE_IN_ROWS
             df_window = self.df.iloc[-number_of_rows_to_display:]
             # df_window = self.df
+            range_max = df_window.iloc[-1]['time']
+            range_min = range_max - 100000000
+            # print(range_max)
             fig = px.line(df_window, x='time', y='channel_7', markers = True, template = 'plotly_dark')
             fig.update_layout(title='HackEEG data', xaxis_title='Time (seconds)', yaxis_title='Reading',
-                              yaxis_range=[-10.0, 10.0])
+                              yaxis_range=[-10.0, 10.0], xaxis_range=[range_min, range_max])
 
             colors = px.colors.qualitative.Plotly
             for i, col in enumerate(df_window.columns):
@@ -88,14 +91,12 @@ class Plotter:
 
         np.random.seed(4) 
         self.cols = ['time', 'channel_7']
-        self.df = pd.DataFrame({'time': [0.1], 'channel_7': [1]}, columns=self.cols)
-        self.df.set_index('time', inplace=True)
-        print(self.df.tail())
+        # self.df = pd.DataFrame({'time': [0.1], 'channel_7': [1]}, columns=self.cols)
         # print(self.df.columns)
 
         time, reading = self.get_datapoint()
-        new_record_df = pd.DataFrame({'time': [time], 'channel_7': [reading]}, columns=self.cols)
-        self.df = pd.concat([self.df, new_record_df])
+        self.df = pd.DataFrame({'time': [time], 'channel_7': [reading]}, columns=self.cols)
+        self.df.set_index('time', inplace=True)
         print(self.df.tail())
 
         # X = pd.DataFrame(np.array([self.get_datapoint()], dtype=float))
