@@ -48,11 +48,17 @@ class Plotter:
             [Input('interval-component', "n_intervals")]
         )
         def streamFig(value):
-            for i in range(0, 50):
-                time, reading = self.get_datapoint()
-                # print(f'time: {time}    reading:{reading}')
+            if self.queue.empty() is True:
+                return None
+            counter = 0
+            max_samples = 50
+            time, reading = self.get_datapoint()
+            while self.queue.empty() is False and counter < max_samples:
                 new_record_df = pd.DataFrame({'time': [time], 'channel_7': [reading]}, columns=self.cols)
                 self.df = pd.concat([self.df, new_record_df])
+                counter += 1
+                time, reading = self.get_datapoint()
+                # print(f'time: {time}    reading:{reading}')
             # print(self.df.tail())
 
             number_of_rows = len(self.df)
@@ -63,9 +69,9 @@ class Plotter:
             df_window = self.df.iloc[-number_of_rows_to_display:]
             # df_window = self.df
             range_max = df_window.iloc[-1]['time']
-            range_min = range_max - 100000000
+            range_min = range_max - 10000000
             # print(range_max)
-            fig = px.line(df_window, x='time', y='channel_7', markers = True, template = 'plotly_dark')
+            fig = px.line(df_window, x='time', y='channel_7', width=1200, height=800, markers=False, template='plotly_dark')
             fig.update_layout(title='HackEEG data', xaxis_title='Time (seconds)', yaxis_title='Reading',
                               yaxis_range=[-10.0, 10.0], xaxis_range=[range_min, range_max])
 
@@ -91,18 +97,10 @@ class Plotter:
 
         np.random.seed(4) 
         self.cols = ['time', 'channel_7']
-        # self.df = pd.DataFrame({'time': [0.1], 'channel_7': [1]}, columns=self.cols)
-        # print(self.df.columns)
-
         time, reading = self.get_datapoint()
         self.df = pd.DataFrame({'time': [time], 'channel_7': [reading]}, columns=self.cols)
         self.df.set_index('time', inplace=True)
         print(self.df.tail())
-
-        # X = pd.DataFrame(np.array([self.get_datapoint()], dtype=float))
-        # self.df=pd.DataFrame(X, columns=self.cols)
-
-        self.df.iloc[0]=0;
 
         fig = self.df.plot(template = 'plotly_dark')
 
