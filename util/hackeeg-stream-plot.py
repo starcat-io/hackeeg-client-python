@@ -24,6 +24,7 @@ from dash.dependencies import Input, Output
 
 DEFAULT_NUMBER_OF_SAMPLES_TO_CAPTURE = 50000
 GRAPH_SIZE_IN_ROWS = 15000
+SCALE_FACTOR = 1000000.0
 
 class Plotter:
     def __init__(self, app=None, queue=None):
@@ -62,7 +63,8 @@ class Plotter:
             df_window = self.df.iloc[-number_of_rows_to_display:]
             # df_window = self.df
             fig = px.line(df_window, x='time', y='channel_7', markers = True, template = 'plotly_dark')
-            fig.update_layout(title='HackEEG data', xaxis_title='Time (seconds)', yaxis_title='Reading')
+            fig.update_layout(title='HackEEG data', xaxis_title='Time (seconds)', yaxis_title='Reading',
+                              yaxis_range=[-10.0, 10.0])
 
             colors = px.colors.qualitative.Plotly
             for i, col in enumerate(df_window.columns):
@@ -78,7 +80,8 @@ class Plotter:
 
 
     def get_datapoint(self):
-        return self.queue.get(block=True)
+        time, reading = self.queue.get(block=True)
+        return time, reading / SCALE_FACTOR
 
     def main(self):
         pd.options.plotting.backend = "plotly"
@@ -353,10 +356,10 @@ class HackEEGTestApplication:
             status_code = result.get(self.hackeeg.MpStatusCodeKey)
             data = result.get(self.hackeeg.MpDataKey)
             samples.append(result)
+            timestamp = result.get('timestamp')
             channel_data = result.get('channel_data')
             if status_code == Status.Ok and data:
                 if not self.quiet:
-                    timestamp = result.get('timestamp')
                     sample_number = result.get('sample_number')
                     ads_gpio = result.get('ads_gpio')
                     loff_statp = result.get('loff_statp')
@@ -372,8 +375,7 @@ class HackEEGTestApplication:
                             print(f"{channel_number + 1}:{sample} ", end='')
                         print()
                 if self.queue:
-                    current_time = time.time() - self.start_time
-                    self.queue.put([current_time, channel_data[6]])
+                    self.queue.put([timestamp, channel_data[6]])
                 if self.lsl and channel_data:
                     self.lsl_outlet.push_sample(channel_data)
             else:
