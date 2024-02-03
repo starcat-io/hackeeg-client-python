@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+
 import argparse
 import uuid
 import time
@@ -8,6 +9,11 @@ import select
 from multiprocessing import Process, Queue
 import logging
 import math
+import collections
+import threading
+import pdb
+
+import dearpygui.dearpygui as dpg
 
 from pylsl import StreamInfo, StreamOutlet
 
@@ -15,130 +21,20 @@ import hackeeg
 from hackeeg import ads1299
 from hackeeg.driver import SPEEDS, GAINS, Status
 
-import pandas as pd
-import numpy as np
-import plotly.express as px
-import plotly.graph_objects as go
-from plotly.subplots import make_subplots
-from dash import callback, Dash, dcc, html
-from dash.dependencies import Input, Output
-
 DEFAULT_NUMBER_OF_SAMPLES_TO_CAPTURE = 50000
 GRAPH_SIZE_IN_ROWS = 150000
 
-class Plotter:
-    def __init__(self, app=None, queue=None):
-        self.app = app
-        if self.app is None:
-            self.app = Dash(__name__)
-        self.callbacks(self.app)
+NUM_SAMPLES_TO_KEEP = 1000000
 
-        self.queue = queue
-        if self.queue is None:
-            raise Exception("No queue given.")
-
-        self.cols = None
-        self.df = None
-        log = logging.getLogger('werkzeug')
-        log.setLevel(logging.ERROR)
-    
-    def callbacks(self, app):
-        @app.callback(
-            Output('graph', 'figure'),
-            [Input('interval-component', "n_intervals")]
-        )
-        def streamFig(value):
-            if self.queue.empty() is True:
-                return None
-            counter = 0
-            max_samples = 50
-            time, reading = self.get_datapoint()
-            while self.queue.empty() is False and counter < max_samples:
-                new_record_df = pd.DataFrame({'time': [time], 'channel_7': [reading]}, columns=self.cols)
-                self.df = pd.concat([self.df, new_record_df])
-                counter += 1
-                time, reading = self.get_datapoint()
-                # print(f'time: {time}    reading:{reading}')
-            # print(self.df.tail())
-
-            number_of_rows = len(self.df)
-            if number_of_rows < GRAPH_SIZE_IN_ROWS:
-                number_of_rows_to_display = number_of_rows
-            else:
-                number_of_rows_to_display = GRAPH_SIZE_IN_ROWS
-            df_window = self.df.iloc[-number_of_rows_to_display:]
-            # df_window = self.df
-            range_max = df_window.iloc[-1]['time']
-            range_min = range_max - 10000000
-            # print(range_max)
-            fig = px.line(df_window, x='time', y='channel_7', width=1200, height=800, markers=False, template='plotly_dark')
-            fig.update_layout(title='HackEEG data', xaxis_title='Time (seconds)', yaxis_title='Reading',
-                              yaxis_range=[-10.0, 10.0], xaxis_range=[range_min, range_max])
-
-            colors = px.colors.qualitative.Plotly
-            for i, col in enumerate(df_window.columns):
-                    fig.add_annotation(x=df_window.index[-1], y=df_window[col].iloc[-1],
-                                        text = str(df_window[col].iloc[-1])[:4],
-                                        align="right",
-                                        arrowcolor = 'rgba(0,0,0,0)',
-                                        ax=25,
-                                        ay=0,
-                                        yanchor = 'middle',
-                                        font = dict(color = colors[i]))
-            return(fig)
-
-    def twos_complement(self, val, bits):
-        """compute the 2's complement of int value val"""
-        if (val & (1 << (bits - 1))) != 0: # if sign bit is set e.g., 8bit: 128-255
-            val = val - (1 << bits)        # compute negative value
-        return val     
-    
-    def decode_reading_twos_complement(self, val):
-        return self.twos_complement(val, 24)
-
-    def get_datapoint(self):
-        time, reading = self.queue.get(block=True)
-
-        # Scale reading
-        # See ADS1299 datasheet https://www.ti.com/lit/ds/symlink/ads1299.pdf 
-        # VREF = ADS1299 internal reference voltage, 4.5V ; datasheet page 10
-        # Equation: 1 LSB = (2 × VREF / Gain) / 2**24 = +FS / 2**23 
-        # Section 9.5.1, page 38
-
-        # print("sample")
-        # print(f"  reading: {reading:#x}")
-        # print(f"  reading: {reading:d}")
-        fs = 4.5 # Full Scale = VREFP
-        value_of_one_lsb_code = fs / (math.pow(2, 23) - 1)
-        scaled_reading = (reading * value_of_one_lsb_code) + (fs/2)
-        # print(f"  scaled reading decimal: {scaled_reading:-f}")
-        return time, scaled_reading 
-
-    def main(self):
-        pd.options.plotting.backend = "plotly"
-
-        np.random.seed(4) 
-        self.cols = ['time', 'channel_7']
-        time, reading = self.get_datapoint()
-        self.df = pd.DataFrame({'time': [time], 'channel_7': [reading]}, columns=self.cols)
-        self.df.set_index('time', inplace=True)
-        print(self.df.tail())
-
-        fig = self.df.plot(template = 'plotly_dark')
-
-        self.app.layout = html.Div([
-            html.H1("Streaming of HackEEG samples"),
-                    dcc.Interval(
-                    id='interval-component',
-                    interval=200, # milliseconds
-                    n_intervals=0
-                ),
-            dcc.Graph(id='graph'),
-        ])
-
-        self.app.run(port = 8069, dev_tools_ui=True, #debug=True,
-                dev_tools_hot_reload =True, threaded=True)
-                
+# global data_y
+# global data_x
+# Can use collections if you only need the last 100 samples
+global data_y
+global data_x
+# data_y = collections.deque([0.0, 0.0],maxlen=NUM_SAMPLES_TO_KEEP)
+# data_x = collections.deque([0.0, 0.0],maxlen=NUM_SAMPLES_TO_KEEP)
+data_y = [0.0] * NUM_SAMPLES_TO_KEEP
+data_x = [0.0] * NUM_SAMPLES_TO_KEEP
 
 
 class HackEEGTestApplicationException(Exception):
@@ -180,8 +76,8 @@ class HackEEGTestApplication:
     """HackEEG commandline tool."""
 
     def __init__(self, queue=None):
-        if queue is None:
-            raise HackEEGTestApplicationException("No queue given.")
+        # if queue is None:
+        #     raise HackEEGTestApplicationException("No queue given.")
         self.queue = queue
 
         self.serial_port_name = None
@@ -371,6 +267,7 @@ class HackEEGTestApplication:
         self.setup(samples_per_second=self.samples_per_second, gain=self.gain, messagepack=self.messagepack)
 
     def process_sample(self, result, samples):
+        # print("process sample")
         data = None
         channel_data = None
         if result:
@@ -395,8 +292,7 @@ class HackEEGTestApplication:
                         for channel_number, sample in enumerate(channel_data):
                             print(f"{channel_number + 1}:{sample} ", end='')
                         print()
-                if self.queue:
-                    self.queue.put([timestamp, channel_data[6]])
+                self.update_data(timestamp, channel_data[6])
                 if self.lsl and channel_data:
                     self.lsl_outlet.push_sample(channel_data)
             else:
@@ -407,11 +303,14 @@ class HackEEGTestApplication:
             print(f"result: {result}")
 
     def main(self):
+        # print("about to parse args")
         self.parse_args()
+        self.started = False
 
         samples = []
         sample_counter = 0
 
+        # print("about to start HackEEG sampling")
         end_time = time.perf_counter()
         start_time = time.perf_counter()
         while ((sample_counter < self.max_samples and not self.continuous_mode) or \
@@ -419,11 +318,12 @@ class HackEEGTestApplication:
             result = self.hackeeg.read_rdatac_response()
             end_time = time.perf_counter()
             sample_counter += 1
-            if self.continuous_mode:
-                self.read_keyboard_input()
+            # if self.continuous_mode:
+            #     self.read_keyboard_input()
             self.process_sample(result, samples)
 
         duration = end_time - start_time
+        # print("about to end HackEEG sampling")
         self.hackeeg.stop_and_sdatac_messagepack()
         self.hackeeg.blink_board_led()
 
@@ -433,21 +333,75 @@ class HackEEGTestApplication:
         dropped_samples = self.find_dropped_samples(samples, sample_counter)
         print(f"dropped samples: {dropped_samples}")
 
+    def update_data(self, timestamp, sample_value):
+        global data_x
+        if not self.started:
+            data_x = [time.time()] * NUM_SAMPLES_TO_KEEP
+        self.started = True
+        # print("update data")
+        data_x.append(time.time())
+        data_y.append(self.decode_sample(sample_value))
+            
+        #set the series x and y to the last nsamples
+        dpg.set_value('series_tag', [list(data_x[-NUM_SAMPLES_TO_KEEP:]), list(data_y[-NUM_SAMPLES_TO_KEEP:])])          
+        dpg.fit_axis_data('x_axis')
+        dpg.fit_axis_data('y_axis')
 
-def plotter_process(app, queue):
-    if queue is None:
-        raise Exception("no q")
-    Plotter(app=app, queue=queue).main()
+    def decode_sample(self, reading):
+        # Scale reading
+        # See ADS1299 datasheet https://www.ti.com/lit/ds/symlink/ads1299.pdf 
+        # VREF = ADS1299 internal reference voltage, 4.5V ; datasheet page 10
+        # Equation: 1 LSB = (2 × VREF / Gain) / 2**24 = +FS / 2**23 
+        # Section 9.5.1, page 38
+
+        # print("sample")
+        # print(f"  reading: {reading:#x}")
+        # print(f"  reading: {reading:d}")
+        fs = 4.5 # Full Scale = VREFP
+        value_of_one_lsb_code = fs / (math.pow(2, 23) - 1)
+        scaled_reading = (reading * value_of_one_lsb_code) + (fs/2)
+        # print(f"  scaled reading decimal: {scaled_reading:-f}")
+        return scaled_reading 
 
 
-def hackeeg_process():
-    queue = Queue()
-    app = None
-    p = Process(target=plotter_process, args=(app, queue))
-    p.start()
-    HackEEGTestApplication(queue=queue).main()
-    p.join()
+class HackEEGGui:
+    def __init__(self):
+        pass
+            
+    def start_gui(self):
+        global data_y
+        global data_x
+
+        dpg.create_context()
+        with dpg.window(label='Tutorial', tag='win',width=3000, height=1000):
+
+            with dpg.plot(label='Line Series', height=-1, width=-1):
+                # optionally create legend
+                dpg.add_plot_legend()
+
+                # REQUIRED: create x and y axes, set to auto scale.
+                x_axis = dpg.add_plot_axis(dpg.mvXAxis, label='x', tag='x_axis')
+                y_axis = dpg.add_plot_axis(dpg.mvYAxis, label='y', tag='y_axis')
+
+
+                # series belong to a y axis. Note the tag name is used in the update
+                # function update_data
+                dpg.add_line_series(x=list(data_x),y=list(data_y), 
+                                    label='Temp', parent='y_axis', 
+                                    tag='series_tag')
+                                    
+        dpg.create_viewport(title='HackEEG Samples', width=3050, height=1040)
+        dpg.setup_dearpygui()
+        dpg.show_viewport()
+
+        # print("started dearpygui")
+        hackeeg = HackEEGTestApplication()
+        thread = threading.Thread(target=hackeeg.main)
+        thread.start()
+        dpg.start_dearpygui()
+        dpg.destroy_context()
+        dpg.create_context()
 
 
 if __name__ == "__main__":
-    hackeeg_process()
+    HackEEGGui().start_gui()
