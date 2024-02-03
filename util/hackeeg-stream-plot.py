@@ -98,7 +98,8 @@ class HackEEGTestApplication:
         self.stream_id = str(uuid.uuid4())
         self.read_samples_continuously = True
         self.continuous_mode = False
-
+        self.last_timestamp = time.time()
+        self.update_seconds = 1.0/60.0
         self.start_time = time.time()
 
         print(f"platform: {sys.platform}")
@@ -302,6 +303,60 @@ class HackEEGTestApplication:
             print("no data to decode")
             print(f"result: {result}")
 
+    def decode_sample(self, reading):
+        # Scale reading
+        # See ADS1299 datasheet https://www.ti.com/lit/ds/symlink/ads1299.pdf 
+        # VREF = ADS1299 internal reference voltage, 4.5V ; datasheet page 10
+        # Equation: 1 LSB = (2 × VREF / Gain) / 2**24 = +FS / 2**23 
+        # Section 9.5.1, page 38
+
+        # print("sample")
+        # print(f"  reading: {reading:#x}")
+        # print(f"  reading: {reading:d}")
+        fs = 4.5 # Full Scale = VREFP
+        value_of_one_lsb_code = fs / (math.pow(2, 23) - 1)
+        scaled_reading = (reading * value_of_one_lsb_code) + (fs/2)
+        # print(f"  scaled reading decimal: {scaled_reading:-f}")
+        return scaled_reading 
+
+    def _update_data(self, timestamp, sample_value):
+        global data_x
+        global data_y
+        sample = 1
+        frequency=1.0
+            # Get new data sample. Note we need both x and y values
+            # if we want a meaningful axis unit.
+        t = time.time() - self.start_time
+        y = math.sin(2.0 * math.pi * frequency * t)
+        data_x.append(t)
+        data_y.append(y)
+            
+        #set the series x and y to the last nsamples
+        num_samples_in_window = 10*1000
+        dpg.set_value('series_tag', [list(data_x[-num_samples_in_window:]), list(data_y[-num_samples_in_window:])])          
+        dpg.fit_axis_data('x_axis')
+        dpg.fit_axis_data('y_axis')
+
+    def update_data(self, timestamp, sample_value):
+        global data_x
+        global data_y
+        now = time.time()
+        if not self.started:
+            self.start_time = now
+            data_x = [time.time()] * NUM_SAMPLES_TO_KEEP
+        self.started = True
+        # print("update data")
+        data_x.append(now-self.start_time)
+        data_y.append(self.decode_sample(sample_value))
+
+        if now - self.start_time >= self.update_seconds:
+            self.last_timestamp = now
+            num_samples_in_window = 10*250
+            #set the series x and y to the last nsamples
+            dpg.set_value('series_tag', [list(data_x[-num_samples_in_window:]), list(data_y[-num_samples_in_window:])])          
+            dpg.fit_axis_data('x_axis')
+            dpg.fit_axis_data('y_axis')
+
     def main(self):
         # print("about to parse args")
         self.parse_args()
@@ -333,36 +388,6 @@ class HackEEGTestApplication:
         dropped_samples = self.find_dropped_samples(samples, sample_counter)
         print(f"dropped samples: {dropped_samples}")
 
-    def update_data(self, timestamp, sample_value):
-        global data_x
-        if not self.started:
-            data_x = [time.time()] * NUM_SAMPLES_TO_KEEP
-        self.started = True
-        # print("update data")
-        data_x.append(time.time())
-        data_y.append(self.decode_sample(sample_value))
-            
-        #set the series x and y to the last nsamples
-        dpg.set_value('series_tag', [list(data_x[-NUM_SAMPLES_TO_KEEP:]), list(data_y[-NUM_SAMPLES_TO_KEEP:])])          
-        dpg.fit_axis_data('x_axis')
-        dpg.fit_axis_data('y_axis')
-
-    def decode_sample(self, reading):
-        # Scale reading
-        # See ADS1299 datasheet https://www.ti.com/lit/ds/symlink/ads1299.pdf 
-        # VREF = ADS1299 internal reference voltage, 4.5V ; datasheet page 10
-        # Equation: 1 LSB = (2 × VREF / Gain) / 2**24 = +FS / 2**23 
-        # Section 9.5.1, page 38
-
-        # print("sample")
-        # print(f"  reading: {reading:#x}")
-        # print(f"  reading: {reading:d}")
-        fs = 4.5 # Full Scale = VREFP
-        value_of_one_lsb_code = fs / (math.pow(2, 23) - 1)
-        scaled_reading = (reading * value_of_one_lsb_code) + (fs/2)
-        # print(f"  scaled reading decimal: {scaled_reading:-f}")
-        return scaled_reading 
-
 
 class HackEEGGui:
     def __init__(self):
@@ -373,7 +398,7 @@ class HackEEGGui:
         global data_x
 
         dpg.create_context()
-        with dpg.window(label='Tutorial', tag='win',width=3000, height=1000):
+        with dpg.window(label='Tutorial', tag='win',width=3000, height=800):
 
             with dpg.plot(label='Line Series', height=-1, width=-1):
                 # optionally create legend
@@ -382,7 +407,8 @@ class HackEEGGui:
                 # REQUIRED: create x and y axes, set to auto scale.
                 x_axis = dpg.add_plot_axis(dpg.mvXAxis, label='x', tag='x_axis')
                 y_axis = dpg.add_plot_axis(dpg.mvYAxis, label='y', tag='y_axis')
-
+                #dpg.set_axis_limits("y_axis", 5.0, -5.0)
+                # dpg.set_axis_limits("y_axis", 50.0, -50.0)
 
                 # series belong to a y axis. Note the tag name is used in the update
                 # function update_data
@@ -390,7 +416,7 @@ class HackEEGGui:
                                     label='Temp', parent='y_axis', 
                                     tag='series_tag')
                                     
-        dpg.create_viewport(title='HackEEG Samples', width=3050, height=1040)
+        dpg.create_viewport(title='HackEEG Samples', width=3050, height=840)
         dpg.setup_dearpygui()
         dpg.show_viewport()
 
