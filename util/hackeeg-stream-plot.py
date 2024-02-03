@@ -7,6 +7,7 @@ import sys
 import select
 from multiprocessing import Process, Queue
 import logging
+import math
 
 from pylsl import StreamInfo, StreamOutlet
 
@@ -24,7 +25,6 @@ from dash.dependencies import Input, Output
 
 DEFAULT_NUMBER_OF_SAMPLES_TO_CAPTURE = 50000
 GRAPH_SIZE_IN_ROWS = 150000
-SCALE_FACTOR = 1000000.0
 
 class Plotter:
     def __init__(self, app=None, queue=None):
@@ -87,10 +87,32 @@ class Plotter:
                                         font = dict(color = colors[i]))
             return(fig)
 
+    def twos_complement(self, val, bits):
+        """compute the 2's complement of int value val"""
+        if (val & (1 << (bits - 1))) != 0: # if sign bit is set e.g., 8bit: 128-255
+            val = val - (1 << bits)        # compute negative value
+        return val     
+    
+    def decode_reading_twos_complement(self, val):
+        return self.twos_complement(val, 24)
 
     def get_datapoint(self):
         time, reading = self.queue.get(block=True)
-        return time, reading / SCALE_FACTOR
+
+        # Scale reading
+        # See ADS1299 datasheet https://www.ti.com/lit/ds/symlink/ads1299.pdf 
+        # VREF = ADS1299 internal reference voltage, 4.5V ; datasheet page 10
+        # Equation: 1 LSB = (2 × VREF / Gain) / 2**24 = +FS / 2**23 
+        # Section 9.5.1, page 38
+
+        # print("sample")
+        # print(f"  reading: {reading:#x}")
+        # print(f"  reading: {reading:d}")
+        fs = 4.5 # Full Scale = VREFP
+        value_of_one_lsb_code = fs / (math.pow(2, 23) - 1)
+        scaled_reading = (reading * value_of_one_lsb_code) + (fs/2)
+        # print(f"  scaled reading decimal: {scaled_reading:-f}")
+        return time, scaled_reading 
 
     def main(self):
         pd.options.plotting.backend = "plotly"
