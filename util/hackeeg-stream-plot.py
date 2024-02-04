@@ -1,5 +1,8 @@
 #!/usr/bin/env python
 
+# needs a pretty high sample rate
+# start with:
+# ./hackeeg-stream-plot.py --continuous --gain 1 --sps 2000 --quiet /dev/ttyACM0
 
 import argparse
 import uuid
@@ -31,9 +34,11 @@ NUM_SAMPLES_TO_KEEP = 1000000
 # Can use collections if you only need the last 100 samples
 global data_y
 global data_x
+global data_samples
 # data_y = collections.deque([0.0, 0.0],maxlen=NUM_SAMPLES_TO_KEEP)
 # data_x = collections.deque([0.0, 0.0],maxlen=NUM_SAMPLES_TO_KEEP)
 data_y = [0.0] * NUM_SAMPLES_TO_KEEP
+data_samples = [0] * NUM_SAMPLES_TO_KEEP
 data_x = [0.0] * NUM_SAMPLES_TO_KEEP
 
 
@@ -75,10 +80,10 @@ class WindowsNonBlockingConsole(object):
 class HackEEGTestApplication:
     """HackEEG commandline tool."""
 
-    def __init__(self, queue=None):
-        # if queue is None:
-        #     raise HackEEGTestApplicationException("No queue given.")
-        self.queue = queue
+    def __init__(self):
+        # if plot is None:
+        #     raise HackEEGTestApplicationException("No DearPyGUI plot given.")
+        # self.plot = plot 
 
         self.serial_port_name = None
         self.hackeeg = None
@@ -98,9 +103,9 @@ class HackEEGTestApplication:
         self.stream_id = str(uuid.uuid4())
         self.read_samples_continuously = True
         self.continuous_mode = False
-        self.last_timestamp = time.time()
+        self.start_time = time.perf_counter()
+        self.last_timestamp = self.start_time 
         self.update_seconds = 1.0/60.0
-        self.start_time = time.time()
 
         print(f"platform: {sys.platform}")
         if sys.platform == "linux" or sys.platform == "linux2" or sys.platform == "darwin":
@@ -319,14 +324,14 @@ class HackEEGTestApplication:
         # print(f"  scaled reading decimal: {scaled_reading:-f}")
         return scaled_reading 
 
-    def _update_data(self, timestamp, sample_value):
+    def update_data(self, timestamp, sample_value):
         global data_x
         global data_y
         sample = 1
         frequency=1.0
             # Get new data sample. Note we need both x and y values
             # if we want a meaningful axis unit.
-        t = time.time() - self.start_time
+        t = time.perf_counter() - self.start_time
         y = math.sin(2.0 * math.pi * frequency * t)
         data_x.append(t)
         data_y.append(y)
@@ -337,25 +342,26 @@ class HackEEGTestApplication:
         dpg.fit_axis_data('x_axis')
         dpg.fit_axis_data('y_axis')
 
-    def update_data(self, timestamp, sample_value):
+    def _update_data(self, timestamp, sample_value):
         global data_x
         global data_y
-        now = time.time()
+        global data_samples
+        now = time.perf_counter()
         if not self.started:
             self.start_time = now
-            data_x = [time.time()] * NUM_SAMPLES_TO_KEEP
+            data_x = [time.perf_counter()] * NUM_SAMPLES_TO_KEEP
         self.started = True
         # print("update data")
         data_x.append(now-self.start_time)
-        data_y.append(self.decode_sample(sample_value))
+        decoded_value = self.decode_sample(sample_value)
+        data_y.append(decoded_value)
+        print(decoded_value)
 
-        if now - self.start_time >= self.update_seconds:
-            self.last_timestamp = now
-            num_samples_in_window = 10*250
-            #set the series x and y to the last nsamples
-            dpg.set_value('series_tag', [list(data_x[-num_samples_in_window:]), list(data_y[-num_samples_in_window:])])          
-            dpg.fit_axis_data('x_axis')
-            dpg.fit_axis_data('y_axis')
+        num_samples_in_window = 100*250
+        #set the series x and y to the last nsamples
+        dpg.set_value('series_tag', [list(data_x[-num_samples_in_window:]), list(data_y[-num_samples_in_window:])])          
+        dpg.fit_axis_data('x_axis')
+        dpg.fit_axis_data('y_axis')
 
     def main(self):
         # print("about to parse args")
@@ -399,7 +405,6 @@ class HackEEGGui:
 
         dpg.create_context()
         with dpg.window(label='Tutorial', tag='win',width=3000, height=800):
-
             with dpg.plot(label='Line Series', height=-1, width=-1):
                 # optionally create legend
                 dpg.add_plot_legend()
@@ -407,7 +412,7 @@ class HackEEGGui:
                 # REQUIRED: create x and y axes, set to auto scale.
                 x_axis = dpg.add_plot_axis(dpg.mvXAxis, label='x', tag='x_axis')
                 y_axis = dpg.add_plot_axis(dpg.mvYAxis, label='y', tag='y_axis')
-                #dpg.set_axis_limits("y_axis", 5.0, -5.0)
+                #dpg.set_axis_limits("y_axis", 0.8, -0.8)
                 # dpg.set_axis_limits("y_axis", 50.0, -50.0)
 
                 # series belong to a y axis. Note the tag name is used in the update
@@ -422,8 +427,8 @@ class HackEEGGui:
 
         # print("started dearpygui")
         hackeeg = HackEEGTestApplication()
-        thread = threading.Thread(target=hackeeg.main)
-        thread.start()
+        hackeeg_thread = threading.Thread(target=hackeeg.main)
+        hackeeg_thread.start()
         dpg.start_dearpygui()
         dpg.destroy_context()
         dpg.create_context()
