@@ -21,10 +21,10 @@ import plotly.express as px
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 from dash import callback, Dash, dcc, html
-from dash.dependencies import Input, Output
+from dash.dependencies import Input, Output, State
 
 DEFAULT_NUMBER_OF_SAMPLES_TO_CAPTURE = 50000
-GRAPH_SIZE_IN_ROWS = 150000
+GRAPH_SIZE_IN_ROWS = 1500
 
 class Plotter:
     def __init__(self, app=None, queue=None):
@@ -87,15 +87,6 @@ class Plotter:
                                         font = dict(color = colors[i]))
             return(fig)
 
-    def twos_complement(self, val, bits):
-        """compute the 2's complement of int value val"""
-        if (val & (1 << (bits - 1))) != 0: # if sign bit is set e.g., 8bit: 128-255
-            val = val - (1 << bits)        # compute negative value
-        return val     
-    
-    def decode_reading_twos_complement(self, val):
-        return self.twos_complement(val, 24)
-
     def get_datapoint(self):
         time, reading = self.queue.get(block=True)
 
@@ -131,11 +122,20 @@ class Plotter:
                     dcc.Interval(
                     id='interval-component',
                     interval=200, # milliseconds
-                    n_intervals=0
                 ),
             dcc.Graph(id='graph'),
         ])
-
+        # self.app.clientside_callback(
+        #     """
+        #     function (n_intervals, data, offset) {
+        #         offset = offset % data.x.length;
+        #         const end = Math.min((offset + 10), data.x.length);
+        #         return [[{x: [data.x.slice(offset, end)], y: [data.y.slice(offset, end)]}, [0], 500], end]
+        #     }
+        #     """,
+        #     [Output('graph', 'extendData'), Output('offset', 'data')],
+        #     [Input('interval', 'n_intervals')], [State('store', 'data'), State('offset', 'data')]
+        # )
         self.app.run(port = 8069, dev_tools_ui=True, #debug=True,
                 dev_tools_hot_reload =True, threaded=True)
                 

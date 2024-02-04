@@ -21,6 +21,7 @@ pyorbital = "^1.8.0"
 dash = "^2.14.2"
 jupyter-dash = "^0.4.2"
 pylsl = "^1.16.2"
+orjson = "^3.9.13"
 
 [requires]
 python_version = "3"
