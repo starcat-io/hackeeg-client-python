@@ -1,0 +1,16 @@
+[project]
+name = "hackeeg-client-python"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "autopep8>=2.3.2",
+    "bitstring>=4.4.0",
+    "gnureadline>=8.3.3",
+    "jsonlines>=4.0.0",
+    "msgpack>=1.1.2",
+    "numpy>=2.4.6",
+    "pylsl>=1.18.2",
+    "pyserial>=3.5",
+]
